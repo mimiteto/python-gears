@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gears"
+dynamic = ["version", "dependencies"]
+authors = [
+  { name="Dimitar Ivanov", email="dim.iv.ivanov@gmail.com" },
+]
+description = "Gears for easier writing of Python modulles"
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = ["gears"]
+
+[project.urls]
+Homepage = "https://github.com/mimiteto/python-gears"
+Issues = "https://github.com/mimiteto/python-gears/issues"
+
+[tool.hatch.version]
+source = "code"
+path = "gears/__about__.py"
+
+[tool.hatch.dependencies]
+source = "code"
+path = "gears/__about__.py"
