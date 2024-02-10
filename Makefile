@@ -4,8 +4,12 @@ red = \033[31m
 color_reset = \033[0m
 SHELL := /bin/bash
 OS := $(shell uname -s)
+TEST_TRESHOLD := 95
+CI ?= false
 
-ifeq ($(OS),Linux)
+ifeq ($(CI),true)
+	OPEN := echo
+else ifeq ($(OS),Linux)
 	OPEN := xdg-open
 else ifeq ($(OS),Darwin)
 	OPEN := open
@@ -53,7 +57,7 @@ lint-python: ensure-venv
 .PHONY: qtest
 qtest: ensure-venv
 	rm -rf htmlcov
-	pytest --cov=$(APP_NAME) --cov=tests --cov-report=html:htmlcov .
+	pytest --cov=$(APP_NAME) --cov=tests --cov-fail-under=$(TEST_TRESHOLD) --cov-report=html:htmlcov .
 	$(OPEN) htmlcov/index.html
 
 .PHONE: build
