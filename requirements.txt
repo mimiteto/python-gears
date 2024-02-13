@@ -1,1 +1,4 @@
 schema
+jsonschema
+ruamel.yaml
+jsonpath-ng

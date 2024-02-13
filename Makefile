@@ -67,3 +67,6 @@ build: ensure-venv
 .PHONY: test
 test: lint qtest
 
+.PHONY: prepare-pr
+prepare-pr: test
+	bash hacks/bump-version.sh
