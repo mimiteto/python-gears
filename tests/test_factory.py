@@ -61,15 +61,9 @@ class TestFactory(unittest.TestCase):
         class YetAnotherGenericTestClass:
             """ Test class for factory """
 
-            def __init__(self):
-                pass
-
         # pylint: disable=too-few-public-methods
         class NotRegisteredClass:
             """ Test class for factory """
-
-            def __init__(self):
-                pass
 
         factory: Factory = Factory(MagicMock())
 
@@ -81,6 +75,8 @@ class TestFactory(unittest.TestCase):
 
         self.assertEqual(factory.get_default(), "")
         factory.register("key1", GenericTestClass)
+        with self.assertRaises(KeyError):
+            factory.register("key1", GenericTestClass)
         factory.register("key2", ArgListTestClass)
         factory.register("key3", MarkerTestClass)
         factory.register("key4", AnotherGenericTestClass)

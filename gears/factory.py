@@ -53,10 +53,15 @@ class Factory(metaclass=SingletonController):
     ) -> None:
         """ Register a class to be produced """
         make_default: bool = False
+        exc: Exception | None = None
         with self._lock:
+            if key in self._builders.keys():
+                exc = KeyError(f"Builder {key} already registered")
             if self._default == "":
                 make_default = True
             self._builders[key] = builder
+        if exc:
+            raise exc
         if make_default:
             self.set_default(key)
 
