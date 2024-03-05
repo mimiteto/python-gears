@@ -189,6 +189,21 @@ class TokenArgParser:
             self.add_argument(arg)
         self._drop_tkns = drop_tkns or []
 
+    @property
+    def arguments(self) -> dict[str, Argument]:
+        """ Returns currently registered args """
+        return self._tokens
+
+    @property
+    def mandatory_args_names(self) -> list[str]:
+        """ Returns names of mandatory args """
+        return self._mandatory_token_names
+
+    @property
+    def default_args_names(self) -> list[str]:
+        """ Returns names of args with default values """
+        return self._default_val_token_names
+
     def add_argument(self, arg: Argument) -> None:
         """ Add argument """
         name = arg.arg
@@ -318,31 +333,3 @@ class TokenArgParser:
         for arg in self._tokens.values():
             usage_str = f"{usage_str} {arg.generate_help()}\n"
         return usage_str
-
-
-# if __name__ == "__main__":
-#     # Test the function
-#     print(tokenize_string("a new set of words"))  # ["a", "new", "set", "of", "words"]
-#     print(tokenize_string("a new 'set of' words"))  # ["a", "new", "set of", "words"]
-#     print(tokenize_string("a new set\' of words"))  # ["a", "new", "set of", "words"]
-#     print(tokenize_string('a new "set of" words'))  # ["a", "new", "set of", "words"]
-#
-#     parser = TokenArgParser(
-#         [
-#             Argument("name", optional=False, help="Name of the person"),
-#             Argument("age", arg_type=int, help="Age of the person"),
-#             Argument("student", arg_type=bool),
-#             Argument("address", help="Address of the person", max_values=3),
-#             Argument("cool", optional=True, default="and the gang"),
-#             Argument(
-#                 "phone",
-#                 help="Phone number of the person",
-#                 max_values=2, optional=False
-#             ),
-#         ]
-#     )
-#     print(parser.usage())
-#     arguments = parser.parse(
-#         "A person has name John, student, and is of age 25. He has an address at place 1. His phone 123"
-#     )
-#     print(f"{arguments}")
