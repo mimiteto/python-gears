@@ -92,13 +92,9 @@ class Permission:
         return Permission(name=pname, level=PermissionType[plevel])
 
     def __eq__(self, other) -> bool:
+        if isinstance(other, str):
+            return str(self) == other
         return self.name == other.name and self.level >= other.level
-
-    def __lt__(self, other) -> bool:
-        return self.level < other.level
-
-    def __gt__(self, other) -> bool:
-        return self.level > other.level
 
 
 @dataclass
@@ -106,24 +102,27 @@ class Role:
     """
     Role groups permissions.
     Roles are attachable to entities via RoleBinding.
+    Role names are unique.
     """
 
     name: str
-    permissions: dict[str, Permission] = field(default_factory=dict)
+    permissions: list[Permission] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self._lock: Lock = Lock()
 
+    def __str__(self) -> str:
+        return self.name
+
     def attach_permission(self, permission: Permission) -> None:
         """ Adds a permission to the role """
         with self._lock:
-            self.permissions[str(permission)] = permission
+            self.permissions.append(permission)
 
     def can_do(self, permission: Permission) -> bool:
         """ Returns True if the role has the permission """
-        pname = str(permission)
         with self._lock:
-            return pname in self.permissions and self.permissions[pname] == permission
+            return permission in self.permissions
 
 
 @dataclass
@@ -210,14 +209,6 @@ class RBAC(metaclass=SingletonController):
         self._rbind_to_role: dict[str, list[RoleBinding]] = {}
         self._lock: Lock = Lock()
 
-    def _check_entity(self, entity: Entity | str) -> None:
-        """ Checks if the entity exists """
-        if isinstance(entity, Entity):
-            entity = entity.name
-        with self._lock:
-            if entity not in self._users and entity not in self._groups:
-                raise RBACEntityNotFound(f"Entity {entity} is not found")
-
     def _check_permission(self, permission: Permission | str) -> None:
         """ Checks if the permission exists """
         if isinstance(permission, Permission):
@@ -246,16 +237,49 @@ class RBAC(metaclass=SingletonController):
 
     def get_entity(self, entity: Entity | str) -> Entity:
         """ Returns the entity """
-        self._check_entity(entity)
         if isinstance(entity, str):
             with self._lock:
-                return self._users[entity] if entity in self._users else self._groups[entity]
-        return entity
+                if entity.startswith("user:"):
+                    if entity.removeprefix("user:") in self._users:
+                        return self._users[entity.removeprefix("user:")]
+                if entity.startswith("group:"):
+                    if entity.removeprefix("group:") in self._groups:
+                        return self._groups[entity.removeprefix("group:")]
+            raise RBACEntityNotFound(f"Entity {entity} is not found")
+        if isinstance(entity, User):
+            if entity.name.removeprefix('user:') in self._users:
+                return entity
+            raise RBACEntityNotFound(f"User {entity} is not found")
+        if isinstance(entity, Group):
+            if entity.name.removeprefix('group:') in self._groups:
+                return entity
+            raise RBACEntityNotFound(f"Group {entity} is not found")
+        raise RBACEntityNotFound(f"Entity {entity} is not found")
+
+    def get_users(self) -> list[User]:
+        """ Returns a list of users """
+        with self._lock:
+            return list(self._users.values())
+
+    def get_user_names(self) -> list[str]:
+        """ Returns a list of user names """
+        with self._lock:
+            return list(self._users.keys())
+
+    def get_groups(self) -> list[Group]:
+        """ Returns a list of groups """
+        with self._lock:
+            return list(self._groups.values())
+
+    def get_group_names(self) -> list[str]:
+        """ Returns a list of group names """
+        with self._lock:
+            return list(self._groups.keys())
 
     def add_user_to_group(self, user: str | User, group: str | Group) -> None:
         """ Adds a user to a group """
-        self._check_entity(user)
-        self._check_entity(group)
+        self.get_entity(user if isinstance(user, Entity) else f"user:{user}")
+        self.get_entity(group if isinstance(group, Entity) else f"group:{group}")
         with self._lock:
             user = user if isinstance(user, User) else self._users[user]
             group = group if isinstance(group, Group) else self._groups[group]
@@ -278,7 +302,7 @@ class RBAC(metaclass=SingletonController):
     def add_role(self, rname: str) -> None:
         """ Adds a role to the system """
         with self._lock:
-            self._roles[rname] = Role(name=rname, permissions={})
+            self._roles[rname] = Role(name=rname, permissions=[])
 
     def get_role(self, role: Role | str) -> Role:
         """ Returns the role """
@@ -322,16 +346,14 @@ class RBAC(metaclass=SingletonController):
         """ Returns a list of entities that the entity is part of, including self """
         ent_reprs: list[str] = []
 
-        if isinstance(entity, Group):
-            ent_reprs = [entity.name]
         if isinstance(entity, User):
             with self._lock:
                 ent_reprs = [gr.name for gr in self._groups.values() if gr.has_entity(entity)]
-            ent_reprs.append(entity.name)
+        ent_reprs.append(entity.name)
 
         return ent_reprs
 
-    def get_entity_permissions(self, entity: Entity) -> list[Permission]:
+    def get_entity_permissions(self, entity: Entity | str) -> list[Permission]:
         """ Returns a list of permissions for the entity """
         entity = self.get_entity(entity)
         permissions: list[Permission] = []
@@ -341,10 +363,10 @@ class RBAC(metaclass=SingletonController):
             with self._lock:
                 if ent in self._rbind_to_ent:
                     for rbind in self._rbind_to_ent[ent]:
-                        permissions.extend(list(rbind.role.permissions.values()))
+                        permissions.extend(rbind.role.permissions)
         return permissions
 
-    def get_entity_roles(self, entity: Entity) -> list[Role]:
+    def get_entity_roles(self, entity: Entity | str) -> list[Role]:
         """
         Returns a list of roles for the entity.
         If the entity is a group, it returns all the roles of the users in the group.
